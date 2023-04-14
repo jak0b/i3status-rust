@@ -60,7 +60,6 @@
 use super::prelude::*;
 use crate::netlink::NetDevice;
 use crate::util;
-use regex::Regex;
 use std::time::Instant;
 
 #[derive(Deserialize, Debug, SmartDefault)]

@@ -64,7 +64,6 @@
 //! Flags: They are not icons but unicode glyphs. You will need a font that
 //! includes them. Tested with: <https://www.babelstone.co.uk/Fonts/Flags.html>
 
-use regex::Regex;
 use std::process::Stdio;
 use tokio::process::Command;
 

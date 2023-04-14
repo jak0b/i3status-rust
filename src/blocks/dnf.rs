@@ -40,7 +40,6 @@
 //! - `update`
 
 use super::prelude::*;
-use regex::Regex;
 use tokio::process::Command;
 
 #[derive(Deserialize, Debug, SmartDefault)]

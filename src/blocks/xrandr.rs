@@ -42,7 +42,6 @@
 
 use super::prelude::*;
 use crate::subprocess::spawn_shell;
-use regex::RegexSet;
 use tokio::process::Command;
 
 #[derive(Deserialize, Debug, SmartDefault)]

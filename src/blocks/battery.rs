@@ -61,7 +61,6 @@
 //! - `bat_charging` (as a progression)
 //! - `bat_not_available`
 
-use regex::Regex;
 use std::convert::Infallible;
 use std::str::FromStr;
 

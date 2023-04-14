@@ -115,8 +115,6 @@ use std::env;
 use std::path::PathBuf;
 use std::process::Stdio;
 
-use regex::Regex;
-
 use tokio::fs::{create_dir_all, symlink};
 use tokio::process::Command;
 

@@ -126,7 +126,6 @@
 //! [MediaPlayer2 Interface]: https://specifications.freedesktop.org/mpris-spec/latest/Player_Interface.html
 
 use super::prelude::*;
-use regex::Regex;
 use zbus::fdo::{DBusProxy, NameOwnerChanged, PropertiesChanged};
 use zbus::names::{OwnedBusName, OwnedUniqueName};
 use zbus::{MatchRule, MessageStream};

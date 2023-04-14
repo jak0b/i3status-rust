@@ -50,8 +50,6 @@
 use std::env;
 use std::process::Stdio;
 
-use regex::Regex;
-
 use tokio::fs::{create_dir_all, File};
 use tokio::process::Command;
 
