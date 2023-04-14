@@ -7,6 +7,8 @@ use tokio::process::Command;
 
 use crate::errors::*;
 
+pub use regex::Regex;
+
 /// Tries to find a file in standard locations:
 /// - Fist try to find a file by full path (only if path is absolute)
 /// - Then try XDG_CONFIG_HOME (e.g. `~/.config`)
@@ -239,6 +241,11 @@ pub fn country_flag_from_iso_code(country_code: &str) -> String {
 #[inline]
 pub fn default<T: Default>() -> T {
     Default::default()
+}
+
+pub enum Mappings {
+    Exact(Vec<(String, String)>),
+    Regex(Vec<(Regex, String)>),
 }
 
 #[cfg(test)]

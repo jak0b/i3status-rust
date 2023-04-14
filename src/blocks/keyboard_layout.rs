@@ -17,6 +17,8 @@
 //! `format` | A string to customise the output of this block. See below for available placeholders. | `" $layout "`
 //! `sway_kb_identifier` | Identifier of the device you want to monitor, as found in the output of `swaymsg -t get_inputs`. | Defaults to first input found
 //! `mappings` | Map `layout (variant)` to custom short name. | `None`
+//! `mappings_use_regex` | Let `mappings` match using regex instead of string equality. The replacement will be regex aware and can contain capture groups. | `false`
+//! Regular expression syntax is described here: https://docs.rs/regex/latest/regex/#syntax
 //!
 //!  Key     | Value | Type
 //! ---------|-------|-----
@@ -55,8 +57,9 @@
 //! block = "keyboard_layout"
 //! driver = "kbddbus"
 //! [block.mappings]
-//! "English (US)" = "us"
-//! "Bulgarian (new phonetic)" = "bg"
+//! "English\\.*" = "us"
+//! "Bulgarian\\.*" = "bg"
+//! "German\\.*" = "de"
 //! ```
 //!
 //! Listen to sway for changes:
@@ -75,8 +78,8 @@
 //! driver = "sway"
 //! format = " $layout "
 //! [block.mappings]
-//! "English (Workman)" = "EN"
-//! "Russian (N/A)" = "RU"
+//! "English\\.*" = "EN"
+//! "Russian\\.*" = "RU"
 //! ```
 
 use super::prelude::*;
@@ -84,6 +87,7 @@ use swayipc_async::{Connection, Event, EventType};
 use tokio::process::Command;
 use zbus::dbus_proxy;
 
+#[serde_as]
 #[derive(Deserialize, Debug, SmartDefault)]
 #[serde(default)]
 pub struct Config {
@@ -92,7 +96,9 @@ pub struct Config {
     #[default(60.into())]
     interval: Seconds,
     sway_kb_identifier: Option<String>,
-    mappings: Option<HashMap<String, String>>,
+    #[serde_as(as = "Option<Map<_, _>>")]
+    mappings: Option<Vec<(String, String)>>,
+    mappings_use_regex: bool,
 }
 
 #[derive(Deserialize, Debug, SmartDefault, Clone, Copy)]
@@ -115,6 +121,27 @@ pub async fn run(config: Config, mut api: CommonApi) -> Result<()> {
         KeyboardLayoutDriver::Sway => Box::new(Sway::new(config.sway_kb_identifier).await?),
     };
 
+    let mappings = match config.mappings {
+        Some(m) => {
+            if config.mappings_use_regex {
+                Some(Mappings::Regex(
+                    m.into_iter()
+                        .map(|(key, val)| {
+                            Ok((
+                                Regex::new(&key)
+                                    .error("Failed to parse `{key}` in mappings as regex")?,
+                                val,
+                            ))
+                        })
+                        .collect::<Result<_>>()?,
+                ))
+            } else {
+                Some(Mappings::Exact(m))
+            }
+        }
+        None => None,
+    };
+
     loop {
         let Info {
             mut layout,
@@ -122,10 +149,23 @@ pub async fn run(config: Config, mut api: CommonApi) -> Result<()> {
         } = backend.get_info().await?;
 
         let variant = variant.unwrap_or_else(|| "N/A".into());
-        if let Some(mappings) = &config.mappings {
-            if let Some(mapped) = mappings.get(&format!("{layout} ({variant})")) {
-                layout = mapped.clone();
+
+        match &mappings {
+            Some(Mappings::Regex(m)) => {
+                if let Some((regex, mapped)) =
+                    m.iter().find(|(regex, _)| regex.is_match(&layout))
+                {
+                    layout = regex.replace(&layout, mapped).into_owned();
+                }
             }
+            Some(Mappings::Exact(m)) => {
+                if let Some((_, mapped)) =
+                    m.iter().find(|&(exact, _)| layout == exact.as_str())
+                {
+                    layout = mapped.clone();
+                }
+            }
+            None => {}
         }
 
         let mut widget = Widget::new().with_format(format.clone());

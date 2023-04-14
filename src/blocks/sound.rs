@@ -55,8 +55,8 @@
 //! block = "sound"
 //! format = " $icon $output_name{ $volume|} "
 //! [block.mappings]
-//! "alsa_output.usb-Harman_Multimedia_JBL_Pebbles_1.0.0-00.analog-stereo" = "Speakers"
-//! "alsa_output.pci-0000_00_1b.0.analog-stereo" = "Headset"
+//! "alsa_output\\.usb-Harman_Multimedia_JBL_Pebbles_1\\.0\\.0-00\\.analog-stereo" = "Speakers"
+//! "alsa_output\\.pci-0000_00_1b\\.0\\.analog-stereo" = "Headset"
 //! ```
 //!
 //! Since the default value for the `device_kind` key is `sink`,
@@ -81,6 +81,34 @@
 //! "analog-input-rear-mic" = "" # Mapping to an empty string makes `$active_port` absent
 //! "analog-input-front-mic" = "ERR!"
 //! ```
+//! Key | Values | Default
+//! ----|--------|--------
+//! `driver` | `"auto"`, `"pulseaudio"`, `"alsa"`. | `"auto"` (Pulseaudio with ALSA fallback)
+//! `format` | A string to customise the output of this block. See below for available placeholders. | <code> $icon {$volume.eng(w:2) &vert;}</code>
+//! `name` | PulseAudio device name, or the ALSA control name as found in the output of `amixer -D yourdevice scontrols`. | PulseAudio: `@DEFAULT_SINK@` / ALSA: `Master`
+//! `device` | ALSA device name, usually in the form "hw:X" or "hw:X,Y" where `X` is the card number and `Y` is the device number as found in the output of `aplay -l`. | `default`
+//! `device_kind` | PulseAudio device kind: `source` or `sink`. | `"sink"`
+//! `natural_mapping` | When using the ALSA driver, display the "mapped volume" as given by `alsamixer`/`amixer -M`, which represents the volume level more naturally with respect for the human ear. | `false`
+//! `step_width` | The percent volume level is increased/decreased for the selected audio device when scrolling. Capped automatically at 50. | `5`
+//! `max_vol` | Max volume in percent that can be set via scrolling. Note it can still be set above this value if changed by another application. | `None`
+//! `show_volume_when_muted` | Show the volume even if it is currently muted. | `false`
+//! `headphones_indicator` | Change icon when headphones are plugged in (pulseaudio only) | `false`
+//! `mappings` | Map `output_name` to custom name. | `None`
+//! `mappings_use_regex` | Let `mappings` match using regex instead of string equality. The replacement will be regex aware and can contain capture groups. | `false`
+//! Regular expression syntax is described here: https://docs.rs/regex/latest/regex/#syntax
+//!
+//! Placeholder          | Value                             | Type   | Unit
+//! ---------------------|-----------------------------------|--------|---------------
+//! `icon`               | Icon based on volume              | Icon   | -
+//! `volume`             | Current volume. Missing if muted. | Number | %
+//! `output_name`        | PulseAudio or ALSA device name    | Text   | -
+//! `output_description` | PulseAudio device description, will fallback to `output_name` if no description is available and will be overwritten by mappings (mappings will still use `output_name`) | Text | -
+//!
+//! Action        | Default button
+//! --------------|---------------
+//! `toggle_mute` | Right
+//! `volume_up`   | Wheel Up
+//! `volume_down` | Wheel Down
 //!
 //! #  Icons Used
 //!
@@ -95,9 +123,6 @@ mod alsa;
 mod pulseaudio;
 
 use super::prelude::*;
-use regex::Regex;
-use serde_with::{serde_as, serde_conv, Map};
-
 // A conversion adapter that is used to convert Regex to String and vice versa
 // when serializing or deserializing using serde.
 serde_conv!(
@@ -127,11 +152,6 @@ pub struct Config {
     max_vol: Option<u32>,
     #[serde_as(as = "Map<RegexAsString, _>")]
     active_port_mappings: Vec<(Regex, String)>,
-}
-
-enum Mappings {
-    Exact(Vec<(String, String)>),
-    Regex(Vec<(Regex, String)>),
 }
 
 pub async fn run(config: Config, mut api: CommonApi) -> Result<()> {
